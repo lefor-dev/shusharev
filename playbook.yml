@@ -34,7 +34,7 @@
     ansible.builtin.replace:
       path: /etc/ssh/sshd_config
 #######################################################################
-      regexp: '#Port 221'
+      regexp: '#Port 22'
       replace: 'Port 1834'
   - name: allow authentication by public key
     ansible.builtin.replace:
@@ -157,10 +157,10 @@
     ansible.builtin.copy:
       src:  nginx.conf
       dest: /skillcloud-nginx/nginx.conf
-  - name: Run Docker1
-    shell: bash -c "cd /skillcloud-nginx ; docker-compose up"
-    args:
-      executable: /bin/bash
+#  - name: Run Docker1
+#    shell: bash -c "cd /skillcloud-nginx ; docker-compose up"
+#    args:
+#      executable: /bin/bash
   - name: restart sshd
     ansible.builtin.systemd:
       state: restarted

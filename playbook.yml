@@ -1,0 +1,173 @@
+- hosts: defalut
+  tasks:
+  - name: update repos
+    apt:
+      update_cache: yes
+      cache_valid_time: 3600
+  - name: Install curl
+    apt:
+      name: curl
+      state: present
+  - name: Install nginx
+    apt:
+      name: nginx
+      state: present
+  - name: enable ufw
+    community.general.ufw:
+      state: enabled
+  - name: allow 80 port
+    community.general.ufw:
+      rule: allow
+      port: '80'
+      proto: tcp
+  - name: allow 8080 port
+    community.general.ufw:
+      rule: allow
+      port: '8080'
+      proto: tcp
+  - name: allow 1834 port
+    community.general.ufw:
+      rule: allow
+      port: '1834'
+      proto: tcp
+  - name: replace ssh port
+    ansible.builtin.replace:
+      path: /etc/ssh/sshd_config
+#######################################################################
+      regexp: '#Port 221'
+      replace: 'Port 1834'
+  - name: allow authentication by public key
+    ansible.builtin.replace:
+      path: /etc/ssh/sshd_config
+      regexp: '#PubkeyAuthentication yes'
+      replace: 'PubkeyAuthentication yes'
+  - name: Create a Webdeveloper user
+    user:
+      name: Webdeveloper
+      password: "$6$erEMQJMpeZ$MOyEMO46dWgbMbBODZ8doo4VhhFeUQ9RKD6cyDvTqBjehaKqj2yOhxQ5P3d24y66vJ4yPo9QHfy1UEsuOWyAV0"
+      shell: /bin/bash
+      generate_ssh_key: yes
+  - authorized_key:
+      user: Webdeveloper
+      state: present
+      manage_dir: yes
+      key: "{{ lookup('file', 'ssh_key.pub') }}"
+  - name: Create a Devopsengineer user
+    user:
+      name: Devopsengineer
+      password: '$6$s.r8144Hzqo$AuvyqMvb74LG.sEkbXBmiBdmyI9ThtxKQG/G4ubYgGx634RMfivey.QnTPSeC9nWzAXcFzSBXk2FGbzn8nFPK/'
+      shell: /bin/bash
+      generate_ssh_key: yes
+  - authorized_key:
+      user: Webdeveloper
+      state: present
+      manage_dir: yes
+      key: "{{ lookup('file', 'ssh_key.pub') }}"
+
+  - name: Create a Projectmanageruser
+    user:
+      name: Projectmanager
+      password: $6$ijUN6D8HKZT$hc2wZejw/fsiTQx1jqA/3NAN49FyaDNiShRPusm/QoWfCdTLDO5gfxxbGFMv5BLRm.qxFAdEiJuSQ.irObfAO0
+      shell: /bin/bash
+      generate_ssh_key: yes
+  - authorized_key:
+      user: Webdeveloper
+      state: present
+      manage_dir: yes
+      key: "{{ lookup('file', 'ssh_key.pub') }}"
+####################################################################
+  - name: Preparation install Dockeк
+    apt:
+      name: ca-certificates
+      state: present
+    apt:
+      name: gnupg 
+      state: present
+    apt:
+      name: lsb-release
+      state: present
+  - name: Install Docker repos key
+    shell: bash -c "rm /usr/share/keyrings/docker-archive-keyring.gpg;curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg"
+    args:
+      executable: /bin/bash
+  - name: Install Docker repos 
+    shell: bash -c 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null; apt update'
+    args:
+      executable: /bin/bash
+  - name: Install Docker
+    apt:
+      update_cache: yes
+#    apt:
+#      name: docker
+#      state: present
+#    apt:
+#      name: docker.io
+#      state: present
+#    apt:
+#      name: docker-ce
+#      state: present
+#    apt:
+#      name: docker-ce-cli
+#      state: present
+    apt:
+      name: containerd
+      state: present
+    apt:
+      name: wmdocker
+      state: present
+#  - name: Run Docker!
+#    shell: bash -c "apt install contanerd docker.io || echo 123"
+#    args:
+#      executable: /bin/bash
+
+###################################################################
+  - name: Copy docker-compose
+    ansible.builtin.copy:
+      src: docker-compose.sh
+      dest: docker-compose.sh
+  - name: run docker-compose
+    shell: bash /root/docker-compose.sh 
+    args:
+      executable: /bin/bash
+  - name: Create /skillcloud-nginx
+    file:
+      path: /skillcloud-nginx
+      state: directory
+  - name: Copy docker-compose.yml
+    ansible.builtin.copy:
+      src:  docker-compose.yml
+      dest: /skillcloud-nginx/docker-compose.yml
+  - name: Copy docker-compose.yml
+    ansible.builtin.copy:
+      src:  docker-compose.yml
+      dest: /skillcloud-nginx/docker-compose.yml
+  - name: Copy Dockerfile-balance
+    ansible.builtin.copy:
+      src:  Dockerfile-balance
+      dest: /skillcloud-nginx/Dockerfile-balance
+  - name: Copy Dockerfile-site  
+    ansible.builtin.copy:
+      src:  Dockerfile-site
+      dest: /skillcloud-nginx/Dockerfile-site
+  - name: Copy index.html 
+    ansible.builtin.copy:
+      src:  index.html 
+      dest: /var/www/html/index.html 
+  - name: Copy nginx.conf
+    ansible.builtin.copy:
+      src:  nginx.conf
+      dest: /skillcloud-nginx/nginx.conf
+  - name: Run Docker1
+    shell: bash -c "cd /skillcloud-nginx ; docker-compose up"
+    args:
+      executable: /bin/bash
+  - name: restart sshd
+    ansible.builtin.systemd:
+      state: restarted
+      name: sshd
+  - name: restart ufw
+    ansible.builtin.systemd:
+      state: restarted
+      name: ufw
+  - name: reboot
+    reboot:
